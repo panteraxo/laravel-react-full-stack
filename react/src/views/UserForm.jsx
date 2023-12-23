@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import axiosClient from '../axios-client'
+import { useStateContext } from '../contexts/ContextProvider';
 
 export default function UserForm() {
   const {id} = useParams()
+  const navigate = useNavigate();
   const [loading,setLoading] = useState(false)
   const [errors,setErrors] = useState(null)
+  const {setNotification} =useStateContext()
   const [user,setUser]=useState({
     id:null,
     name:'',
@@ -18,13 +21,46 @@ export default function UserForm() {
         setLoading(true)
         axiosClient.get(`/users/${id}`)
         .then(({data})=>{
-            setUser(data)
+            
             setLoading(false)
+            
+            setUser(data)
         })
         .catch(()=>{
             setLoading
         })
     },[])
+  }
+  const onSubmit = (ev)=>{
+    ev.preventDefault()
+    if(user.id){
+        axiosClient.put(`/users/${user.id}`,user)
+        .then(()=>{
+            //TODO show notification
+            setNotification("User was successfully updated")
+            navigate('/users')
+        })
+        .catch(err=>{
+            const response = err.response;
+            if(response && response.status === 422) {
+                setErrors(response.data.errors)
+            }
+        })
+    }
+    else{
+        axiosClient.post(`/users`,user)
+        .then(()=>{
+            //TODO show notification
+            setNotification("User was successfully created")
+            navigate('/users')
+        })
+        .catch(err=>{
+            const response = err.response;
+            if(response && response.status === 422) {
+                setErrors(response.data.errors)
+            }
+        })
+    }
   }
     return (
     <>
@@ -34,7 +70,8 @@ export default function UserForm() {
         {loading && (
             <div className='text-center'>Loading...</div>
         )}
-        {errors && <div className='alert'>
+        {errors && 
+        <div className='alert'>
         {Object.keys(errors).map(key=>(
           <p key={key}>{errors[key][0]}</p>
         ))}
@@ -43,7 +80,11 @@ export default function UserForm() {
         }
         {!loading &&
         <form onSubmit={onSubmit}>
-            <input placeholder='' />
+            <input onChange={ev=> setUser({...user,name:ev.target.value})} value={user.name} placeholder='Name' />
+            <input onChange={ev=> setUser({...user,email:ev.target.value})} value={user.email} placeholder='Email' />
+            <input onChange={ev=> setUser({...user,password:ev.target.value})}  placeholder='Password' type='password'/>
+            <input onChange={ev=> setUser({...user,password_confirmation:ev.target.value})}  placeholder='Password Confirmation' type='password' />
+            <button className='btn'>Save</button>
         </form>
         }
         
